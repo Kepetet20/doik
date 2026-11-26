@@ -1,0 +1,640 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f7f8f5">
+  <title>Rapiin — Catatan Keuangan</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #17251f;
+      --muted: #77827c;
+      --line: #e8ece8;
+      --paper: #fff;
+      --canvas: #f7f8f5;
+      --green: #237b55;
+      --green-dark: #185f40;
+      --green-soft: #eaf5ee;
+      --red: #c65a52;
+      --red-soft: #fff0ed;
+      --shadow: 0 12px 36px rgba(33, 54, 43, .06);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--canvas);
+      color: var(--ink);
+      font: 15px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    .shell { max-width: 1160px; margin: 0 auto; padding: 28px 30px 52px; }
+    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 36px; }
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-mark {
+      display: grid; place-items: center; width: 42px; height: 42px; border-radius: 14px;
+      background: var(--green); color: #fff; font-size: 22px; font-weight: 800;
+    }
+    .brand-name { font-size: 20px; font-weight: 750; letter-spacing: -.5px; }
+    .brand-tagline { color: var(--muted); font-size: 12px; margin-top: -3px; }
+    .today-label { color: var(--muted); font-size: 13px; }
+    .intro { margin-bottom: 27px; }
+    .intro h1 { margin: 0 0 5px; font-size: clamp(25px, 4vw, 33px); letter-spacing: -1.1px; }
+    .intro p { color: var(--muted); margin: 0; }
+    .dashboard { display: grid; grid-template-columns: minmax(0, 1.65fr) minmax(300px, .95fr); gap: 20px; align-items: start; }
+    .left-column, .right-column { display: grid; gap: 20px; }
+    .card { background: var(--paper); border: 1px solid var(--line); border-radius: 18px; box-shadow: var(--shadow); }
+    .overview { padding: 24px; }
+    .section-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .section-top h2, .card-heading { font-size: 16px; margin: 0; letter-spacing: -.25px; }
+    .date-picker {
+      border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px;
+      background: #fff; color: var(--ink); font-size: 13px;
+    }
+    .balance { margin: 25px 0 22px; }
+    .eyebrow { color: var(--muted); font-size: 12px; font-weight: 600; }
+    .balance-value { font-size: clamp(29px, 5vw, 38px); line-height: 1.15; font-weight: 760; letter-spacing: -1.4px; margin-top: 5px; }
+    .balance-caption { color: var(--muted); font-size: 12px; margin-top: 5px; }
+    .summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .summary-item { padding: 15px; border: 1px solid var(--line); border-radius: 13px; }
+    .summary-item .label { display: flex; gap: 7px; align-items: center; color: var(--muted); font-size: 12px; }
+    .summary-item .value { margin-top: 7px; font-size: 17px; font-weight: 700; }
+    .dot { width: 8px; height: 8px; display: inline-block; border-radius: 50%; background: var(--green); }
+    .dot.red { background: var(--red); }
+    .limit-card { padding: 23px 24px; }
+    .budget-card { padding: 23px 24px 24px; }
+    .budget-intro { color: var(--muted); font-size: 12px; margin: 5px 0 17px; }
+    .budget-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 0 12px; }
+    .budget-fields .field { margin-bottom: 12px; }
+    .budget-result { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 3px 0 13px; }
+    .budget-result-item { padding: 13px; border: 1px solid var(--line); border-radius: 12px; }
+    .budget-result-label { color: var(--muted); font-size: 11px; }
+    .budget-result-value { font-size: 16px; font-weight: 720; margin-top: 4px; }
+    .budget-message { min-height: 18px; margin: 0 0 9px; color: var(--muted); font-size: 12px; }
+    .budget-message.error { color: var(--red); font-weight: 600; }
+    .apply-budget { width: 100%; padding: 11px; border: 0; border-radius: 10px; background: var(--green); color: white; font-weight: 700; }
+    .apply-budget:disabled { background: #b7c4bb; cursor: not-allowed; }
+    .limit-setting { display: flex; align-items: center; gap: 8px; }
+    .limit-setting input { width: 143px; border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px; outline: none; }
+    .limit-setting input:focus, .field input:focus { border-color: #80b69a; box-shadow: 0 0 0 3px #eaf5ee; }
+    .save-limit { border: 0; color: white; background: var(--green); border-radius: 9px; padding: 9px 12px; font-size: 12px; font-weight: 650; }
+    .limit-numbers { display: flex; justify-content: space-between; gap: 10px; margin: 20px 0 9px; font-size: 12px; color: var(--muted); }
+    .limit-numbers strong { color: var(--ink); }
+    .progress-track { height: 9px; background: #edf0ed; overflow: hidden; border-radius: 20px; }
+    .progress-bar { height: 100%; width: 0; border-radius: inherit; background: var(--green); transition: width .25s ease; }
+    .progress-bar.over { background: var(--red); }
+    .limit-note { font-size: 12px; color: var(--muted); margin: 10px 0 0; }
+    .limit-note.over { color: var(--red); font-weight: 600; }
+    .form-card { padding: 23px 24px 24px; }
+    .type-switch { background: #f1f3f1; padding: 4px; border-radius: 11px; display: grid; grid-template-columns: 1fr 1fr; margin: 18px 0; }
+    .type-button { border: 0; background: transparent; padding: 9px; border-radius: 8px; color: var(--muted); font-size: 13px; font-weight: 650; }
+    .type-button.active.income { background: white; color: var(--green); box-shadow: 0 2px 6px #1c36230d; }
+    .type-button.active.expense { background: white; color: var(--red); box-shadow: 0 2px 6px #1c36230d; }
+    .field { display: grid; gap: 7px; margin-bottom: 14px; }
+    .field label { font-size: 12px; color: #536159; font-weight: 650; }
+    .field input { width: 100%; padding: 11px 12px; border-radius: 10px; border: 1px solid var(--line); outline: none; color: var(--ink); background: white; }
+    .field input::placeholder { color: #a3aca6; }
+    .add-button { width: 100%; padding: 12px; border: 0; border-radius: 10px; background: var(--green); color: white; font-weight: 700; margin-top: 3px; }
+    .add-button:hover, .save-limit:hover { background: var(--green-dark); }
+    .history-card { overflow: hidden; }
+    .history-head { padding: 21px 24px 15px; display: flex; align-items: center; justify-content: space-between; }
+    .history-head h2 { margin: 0; font-size: 16px; }
+    .transaction-count { color: var(--muted); font-size: 12px; }
+    .transactions { list-style: none; padding: 0; margin: 0; }
+    .transaction {
+      display: flex; align-items: center; gap: 12px; padding: 14px 24px;
+      border-top: 1px solid #f0f2f0;
+    }
+    .transaction-icon { flex: 0 0 38px; height: 38px; display: grid; place-items: center; border-radius: 12px; background: var(--green-soft); color: var(--green); font-size: 17px; }
+    .transaction-icon.expense { background: var(--red-soft); color: var(--red); }
+    .transaction-main { min-width: 0; flex: 1; }
+    .transaction-title { font-weight: 650; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .transaction-time { color: var(--muted); font-size: 11px; margin-top: 2px; }
+    .transaction-amount { white-space: nowrap; font-size: 13px; font-weight: 700; }
+    .transaction-amount.income { color: var(--green); }
+    .delete-button { border: 0; background: transparent; color: #a0aaa3; padding: 5px; font-size: 17px; line-height: 1; }
+    .delete-button:hover { color: var(--red); }
+    .empty { text-align: center; padding: 34px 20px 38px; color: var(--muted); font-size: 13px; }
+    .empty-icon { width: 44px; height: 44px; display: grid; place-items: center; background: #f3f5f2; border-radius: 15px; margin: 0 auto 10px; font-size: 20px; }
+    .notice { min-height: 17px; color: var(--red); font-size: 12px; margin: -7px 0 9px; }
+    footer { color: #939c96; font-size: 11px; text-align: center; margin-top: 26px; }
+    @media (max-width: 760px) {
+      .shell { padding: 20px 16px 38px; }
+      header { margin-bottom: 27px; }
+      .dashboard { grid-template-columns: 1fr; }
+      .left-column { order: 0; }
+      .right-column { order: 1; grid-template-columns: 1fr 1fr; align-items: stretch; }
+      .limit-card, .form-card { padding: 20px; }
+      .budget-card { padding: 20px; }
+      .limit-setting { align-items: stretch; flex-wrap: wrap; }
+      .limit-setting input { flex: 1; min-width: 120px; }
+    }
+    @media (max-width: 520px) {
+      .right-column { grid-template-columns: 1fr; }
+      .overview { padding: 20px; }
+      .budget-fields { grid-template-columns: 1fr; }
+      .transaction { padding: 13px 17px; }
+      .history-head { padding: 19px 18px 14px; }
+      .today-label { display: none; }
+      .date-picker { max-width: 145px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">↗</div>
+        <div>
+          <div class="brand-name">rapiin</div>
+          <div class="brand-tagline">Keuangan lebih tertata</div>
+        </div>
+      </div>
+      <div class="today-label" id="today-label"></div>
+    </header>
+
+    <section class="intro">
+      <h1>Uangmu, kendalimu.</h1>
+      <p>Catat transaksi harian dan tetap jaga pengeluaranmu.</p>
+    </section>
+
+    <div class="dashboard">
+      <section class="left-column">
+        <section class="card overview" aria-labelledby="overview-title">
+          <div class="section-top">
+            <h2 id="overview-title">Ringkasan harian</h2>
+            <input class="date-picker" id="selected-date" type="date" aria-label="Pilih tanggal">
+          </div>
+          <div class="balance">
+            <div class="eyebrow">Selisih hari ini</div>
+            <div class="balance-value" id="daily-balance">Rp0</div>
+            <div class="balance-caption" id="balance-caption">Pemasukan dikurangi pengeluaran</div>
+          </div>
+          <div class="summary-grid">
+            <div class="summary-item">
+              <div class="label"><span class="dot"></span> Pemasukan</div>
+              <div class="value" id="daily-income">Rp0</div>
+            </div>
+            <div class="summary-item">
+              <div class="label"><span class="dot red"></span> Pengeluaran</div>
+              <div class="value" id="daily-expense">Rp0</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card budget-card" aria-labelledby="budget-title">
+          <h2 class="card-heading" id="budget-title">Hitung batas pengeluaran</h2>
+          <p class="budget-intro">Batas = (gaji − angsuran − biaya rutin bulanan − tabungan) ÷ hari dalam bulan. Pengeluaran rutin harian dipakai untuk menghitung sisa uang bebas.</p>
+          <form id="budget-form">
+            <div class="budget-fields">
+              <div class="field">
+                <label for="budget-income">Gaji bersih per bulan (Rp)</label>
+                <input id="budget-income" type="number" min="0" step="1" placeholder="Contoh: 5500000" inputmode="numeric">
+              </div>
+              <div class="field">
+                <label for="budget-installments">Total angsuran per bulan (Rp)</label>
+                <input id="budget-installments" type="number" min="0" step="1" placeholder="Contoh: 1500000" inputmode="numeric">
+              </div>
+              <div class="field">
+                <label for="budget-fixed">Rutin bulanan selain harian (tagihan/kos, Rp)</label>
+                <input id="budget-fixed" type="number" min="0" step="1" placeholder="Tagihan, kos, dll." inputmode="numeric">
+              </div>
+              <div class="field">
+                <label for="budget-savings">Target tabungan per bulan (Rp)</label>
+                <input id="budget-savings" type="number" min="0" step="1" placeholder="Boleh 0" inputmode="numeric">
+              </div>
+              <div class="field">
+                <label for="budget-daily">Pengeluaran rutin per hari (Rp)</label>
+                <input id="budget-daily" type="number" min="0" step="1" placeholder="Makan, rokok, dll." inputmode="numeric">
+              </div>
+            </div>
+            <div class="budget-result" aria-live="polite">
+              <div class="budget-result-item">
+                <div class="budget-result-label">Batas maksimal per hari</div>
+                <div class="budget-result-value" id="calculated-limit">Rp0</div>
+              </div>
+              <div class="budget-result-item">
+                <div class="budget-result-label">Sisa setelah rutin harian</div>
+                <div class="budget-result-value" id="calculated-flex">Rp0</div>
+              </div>
+            </div>
+            <p class="budget-message" id="budget-message" role="status">Isi gaji bersih untuk mulai menghitung.</p>
+            <button class="apply-budget" id="apply-budget" type="submit" disabled>Gunakan batas ini</button>
+          </form>
+        </section>
+
+        <section class="card limit-card" aria-labelledby="limit-title">
+          <div class="section-top">
+            <h2 id="limit-title">Batas pengeluaran harian</h2>
+            <div class="limit-setting">
+              <input id="limit-input" type="number" min="0" step="1000" inputmode="numeric" aria-label="Batas pengeluaran per hari">
+              <button class="save-limit" id="save-limit" type="button">Simpan</button>
+            </div>
+          </div>
+          <div class="limit-numbers">
+            <span>Terpakai <strong id="spent-label">Rp0</strong></span>
+            <span>Batas <strong id="limit-label">Rp0</strong></span>
+          </div>
+          <div class="progress-track" role="progressbar" aria-label="Penggunaan batas pengeluaran" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="progress-track">
+            <div class="progress-bar" id="progress-bar"></div>
+          </div>
+          <p class="limit-note" id="limit-note">Atur batas harian agar pengeluaran tetap terkontrol.</p>
+        </section>
+
+        <section class="card history-card" aria-labelledby="history-title">
+          <div class="history-head">
+            <h2 id="history-title">Transaksi</h2>
+            <span class="transaction-count" id="transaction-count">0 transaksi</span>
+          </div>
+          <ul class="transactions" id="transactions"></ul>
+        </section>
+      </section>
+
+      <aside class="right-column">
+        <section class="card form-card" aria-labelledby="form-title">
+          <h2 class="card-heading" id="form-title">Tambah transaksi</h2>
+          <div class="type-switch" role="group" aria-label="Jenis transaksi">
+            <button type="button" class="type-button active income" data-type="income" aria-pressed="true">Pemasukan</button>
+            <button type="button" class="type-button" data-type="expense" aria-pressed="false">Pengeluaran</button>
+          </div>
+          <form id="transaction-form">
+            <div class="field">
+              <label for="amount">Jumlah (Rp)</label>
+              <input id="amount" type="number" min="1" step="1" placeholder="Contoh: 50000" required inputmode="numeric">
+            </div>
+            <div class="field">
+              <label for="description">Keterangan</label>
+              <input id="description" type="text" maxlength="60" placeholder="Contoh: Makan siang" required>
+            </div>
+            <div class="field">
+              <label for="transaction-date">Tanggal</label>
+              <input id="transaction-date" type="date" required>
+            </div>
+            <p class="notice" id="form-notice" role="alert"></p>
+            <button class="add-button" type="submit">+ Catat transaksi</button>
+          </form>
+        </section>
+      </aside>
+    </div>
+    <footer>Data tersimpan di browser ini. Catatanmu tetap pribadi di perangkatmu.</footer>
+  </main>
+
+  <script>
+    (function () {
+      "use strict";
+
+      var STORAGE_KEY = "rapiin-transactions-v1";
+      var LIMIT_KEY = "rapiin-daily-limit-v1";
+      var BUDGET_KEY = "rapiin-budget-v1";
+      var selectedType = "income";
+      var transactions = loadTransactions();
+      var dailyLimit = loadLimit();
+      var budgetInputs = loadBudget();
+
+      var selectedDate = document.getElementById("selected-date");
+      var transactionDate = document.getElementById("transaction-date");
+      var amountInput = document.getElementById("amount");
+      var descriptionInput = document.getElementById("description");
+      var formNotice = document.getElementById("form-notice");
+
+      function localDateString(date) {
+        var year = date.getFullYear();
+        var month = String(date.getMonth() + 1).padStart(2, "0");
+        var day = String(date.getDate()).padStart(2, "0");
+        return year + "-" + month + "-" + day;
+      }
+
+      function formatCurrency(value) {
+        return new Intl.NumberFormat("id-ID", {
+          style: "currency",
+          currency: "IDR",
+          maximumFractionDigits: 0
+        }).format(value);
+      }
+
+      function loadTransactions() {
+        try {
+          var saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+          if (!Array.isArray(saved)) return [];
+          return saved.filter(function (item) {
+            return item && typeof item.id === "string" &&
+              (item.type === "income" || item.type === "expense") &&
+              Number.isFinite(item.amount) && item.amount > 0 &&
+              typeof item.description === "string" && /^\d{4}-\d{2}-\d{2}$/.test(item.date);
+          });
+        } catch (error) {
+          console.error("Tidak dapat membaca data transaksi.", error);
+          return [];
+        }
+      }
+
+      function loadLimit() {
+        try {
+          var stored = Number(localStorage.getItem(LIMIT_KEY));
+          return Number.isFinite(stored) && stored > 0 ? stored : 0;
+        } catch (error) {
+          console.error("Tidak dapat membaca batas pengeluaran.", error);
+          return 0;
+        }
+      }
+
+      function loadBudget() {
+        var emptyBudget = { income: "", installments: "", fixed: "", savings: "", daily: "" };
+        try {
+          var saved = JSON.parse(localStorage.getItem(BUDGET_KEY) || "null");
+          if (!saved || typeof saved !== "object") return emptyBudget;
+          Object.keys(emptyBudget).forEach(function (key) {
+            var value = Number(saved[key]);
+            if (Number.isFinite(value) && value >= 0) emptyBudget[key] = value ? String(value) : "";
+          });
+          return emptyBudget;
+        } catch (error) {
+          console.error("Tidak dapat membaca data anggaran.", error);
+          return emptyBudget;
+        }
+      }
+
+      function budgetDaysInSelectedMonth() {
+        var parts = selectedDate.value.split("-");
+        return new Date(Number(parts[0]), Number(parts[1]), 0).getDate();
+      }
+
+      function calculateBudget() {
+        var monthlyAvailable = Number(budgetInputs.income) -
+          Number(budgetInputs.installments || 0) -
+          Number(budgetInputs.fixed || 0) -
+          Number(budgetInputs.savings || 0);
+        var days = budgetDaysInSelectedMonth();
+        var limit = monthlyAvailable > 0 ? Math.floor(monthlyAvailable / days) : 0;
+        var flexible = limit - Number(budgetInputs.daily || 0);
+        return { monthlyAvailable: monthlyAvailable, limit: limit, flexible: flexible };
+      }
+
+      function renderBudget() {
+        var resultNode = document.getElementById("calculated-limit");
+        var flexibleNode = document.getElementById("calculated-flex");
+        var message = document.getElementById("budget-message");
+        var button = document.getElementById("apply-budget");
+        var hasIncome = Number(budgetInputs.income) > 0;
+        var result = calculateBudget();
+
+        resultNode.textContent = formatCurrency(result.limit);
+        flexibleNode.textContent = hasIncome ? formatCurrency(result.flexible) : "Rp0";
+        message.classList.remove("error");
+        button.disabled = !hasIncome || result.limit <= 0;
+
+        if (!hasIncome) {
+          message.textContent = "Isi gaji bersih untuk mulai menghitung.";
+        } else if (result.monthlyAvailable < 0) {
+          message.textContent = "Total angsuran, biaya rutin, dan tabungan melebihi gaji.";
+          message.classList.add("error");
+        } else if (result.monthlyAvailable === 0) {
+          message.textContent = "Tidak ada sisa anggaran untuk batas pengeluaran harian.";
+          message.classList.add("error");
+        } else if (result.limit <= 0) {
+          message.textContent = "Sisa anggaran bulanan belum cukup untuk batas positif per hari.";
+          message.classList.add("error");
+        } else if (result.flexible < 0) {
+          message.textContent = "Pengeluaran rutin harian melebihi batas. Coba sesuaikan anggaran.";
+          message.classList.add("error");
+        } else {
+          message.textContent = "Dihitung untuk " + budgetDaysInSelectedMonth() + " hari. Angka sisa sudah memperhitungkan pengeluaran rutin harian.";
+        }
+      }
+
+      function saveTransactions() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
+          return true;
+        } catch (error) {
+          console.error("Tidak dapat menyimpan transaksi.", error);
+          formNotice.textContent = "Data tidak bisa disimpan. Periksa ruang penyimpanan browser.";
+          return false;
+        }
+      }
+
+      function selectedTransactions() {
+        return transactions.filter(function (item) { return item.date === selectedDate.value; })
+          .sort(function (a, b) { return b.createdAt - a.createdAt; });
+      }
+
+      function render() {
+        var daily = selectedTransactions();
+        var income = 0;
+        var expense = 0;
+        daily.forEach(function (item) {
+          if (item.type === "income") income += item.amount;
+          else expense += item.amount;
+        });
+
+        document.getElementById("daily-balance").textContent = formatCurrency(income - expense);
+        document.getElementById("balance-caption").textContent = selectedDate.value === localDateString(new Date())
+          ? "Pemasukan dikurangi pengeluaran hari ini"
+          : "Pemasukan dikurangi pengeluaran pada tanggal ini";
+        document.getElementById("daily-income").textContent = formatCurrency(income);
+        document.getElementById("daily-expense").textContent = formatCurrency(expense);
+        document.getElementById("spent-label").textContent = formatCurrency(expense);
+        document.getElementById("limit-label").textContent = dailyLimit > 0 ? formatCurrency(dailyLimit) : "Belum diatur";
+        document.getElementById("limit-input").value = dailyLimit || "";
+
+        var ratio = dailyLimit > 0 ? expense / dailyLimit * 100 : 0;
+        var progress = document.getElementById("progress-bar");
+        progress.style.width = Math.min(ratio, 100) + "%";
+        progress.classList.toggle("over", dailyLimit > 0 && expense > dailyLimit);
+        var track = document.getElementById("progress-track");
+        track.setAttribute("aria-valuenow", String(Math.min(Math.round(ratio), 100)));
+        var note = document.getElementById("limit-note");
+        note.classList.toggle("over", dailyLimit > 0 && expense > dailyLimit);
+        if (dailyLimit <= 0) {
+          note.textContent = "Atur batas harian agar pengeluaran tetap terkontrol.";
+        } else if (expense > dailyLimit) {
+          note.textContent = "Batas terlampaui " + formatCurrency(expense - dailyLimit) + ". Yuk, rem pengeluaran dulu.";
+        } else {
+          note.textContent = "Sisa batas hari ini " + formatCurrency(dailyLimit - expense) + ". Semangat tetap sesuai rencana!";
+        }
+
+        document.getElementById("transaction-count").textContent = daily.length + (daily.length === 1 ? " transaksi" : " transaksi");
+        var list = document.getElementById("transactions");
+        list.textContent = "";
+        if (!daily.length) {
+          var empty = document.createElement("li");
+          empty.className = "empty";
+          var icon = document.createElement("div");
+          icon.className = "empty-icon";
+          icon.textContent = "◷";
+          var message = document.createElement("div");
+          message.textContent = "Belum ada transaksi di tanggal ini.";
+          empty.appendChild(icon);
+          empty.appendChild(message);
+          list.appendChild(empty);
+          return;
+        }
+
+        daily.forEach(function (item) {
+          var row = document.createElement("li");
+          row.className = "transaction";
+          var icon = document.createElement("div");
+          icon.className = "transaction-icon" + (item.type === "expense" ? " expense" : "");
+          icon.setAttribute("aria-hidden", "true");
+          icon.textContent = item.type === "income" ? "↙" : "↗";
+          var main = document.createElement("div");
+          main.className = "transaction-main";
+          var title = document.createElement("div");
+          title.className = "transaction-title";
+          title.textContent = item.description;
+          var time = document.createElement("div");
+          time.className = "transaction-time";
+          time.textContent = new Date(item.createdAt).toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" });
+          main.appendChild(title);
+          main.appendChild(time);
+          var value = document.createElement("div");
+          value.className = "transaction-amount " + item.type;
+          value.textContent = (item.type === "income" ? "+" : "−") + formatCurrency(item.amount);
+          var remove = document.createElement("button");
+          remove.className = "delete-button";
+          remove.type = "button";
+          remove.textContent = "×";
+          remove.setAttribute("aria-label", "Hapus transaksi " + item.description);
+          remove.addEventListener("click", function () { deleteTransaction(item.id); });
+          row.appendChild(icon);
+          row.appendChild(main);
+          row.appendChild(value);
+          row.appendChild(remove);
+          list.appendChild(row);
+        });
+      }
+
+      function deleteTransaction(id) {
+        var previous = transactions;
+        transactions = transactions.filter(function (item) { return item.id !== id; });
+        if (!saveTransactions()) {
+          transactions = previous;
+          return;
+        }
+        render();
+      }
+
+      document.querySelectorAll(".type-button").forEach(function (button) {
+        button.addEventListener("click", function () {
+          selectedType = button.getAttribute("data-type");
+          document.querySelectorAll(".type-button").forEach(function (other) {
+            var active = other === button;
+            other.classList.toggle("active", active);
+            other.setAttribute("aria-pressed", String(active));
+          });
+        });
+      });
+
+      document.getElementById("transaction-form").addEventListener("submit", function (event) {
+        event.preventDefault();
+        formNotice.textContent = "";
+        var amount = Number(amountInput.value);
+        var description = descriptionInput.value.trim();
+        if (!Number.isFinite(amount) || amount <= 0 || !description || !transactionDate.value) {
+          formNotice.textContent = "Isi jumlah, keterangan, dan tanggal dengan benar.";
+          return;
+        }
+        var item = {
+          id: (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : String(Date.now()) + Math.random().toString(16).slice(2),
+          type: selectedType,
+          amount: amount,
+          description: description,
+          date: transactionDate.value,
+          createdAt: Date.now()
+        };
+        transactions.push(item);
+        if (!saveTransactions()) {
+          transactions.pop();
+          return;
+        }
+        selectedDate.value = item.date;
+        amountInput.value = "";
+        descriptionInput.value = "";
+        render();
+        amountInput.focus();
+      });
+
+      document.getElementById("save-limit").addEventListener("click", function () {
+        var input = document.getElementById("limit-input");
+        var value = Number(input.value);
+        if (!Number.isFinite(value) || value <= 0) {
+          formNotice.textContent = "Batas harian harus lebih dari Rp0.";
+          input.focus();
+          return;
+        }
+        try {
+          localStorage.setItem(LIMIT_KEY, String(value));
+          dailyLimit = value;
+          formNotice.textContent = "";
+          render();
+        } catch (error) {
+          console.error("Tidak dapat menyimpan batas pengeluaran.", error);
+          formNotice.textContent = "Batas tidak bisa disimpan. Periksa ruang penyimpanan browser.";
+        }
+      });
+
+      var budgetFieldMap = {
+        "budget-income": "income",
+        "budget-installments": "installments",
+        "budget-fixed": "fixed",
+        "budget-savings": "savings",
+        "budget-daily": "daily"
+      };
+      Object.keys(budgetFieldMap).forEach(function (id) {
+        var input = document.getElementById(id);
+        var key = budgetFieldMap[id];
+        input.value = budgetInputs[key];
+        input.addEventListener("input", function () {
+          var value = input.value === "" ? "" : Number(input.value);
+          if (value !== "" && (!Number.isFinite(value) || value < 0)) return;
+          budgetInputs[key] = value === "" ? "" : String(value);
+          renderBudget();
+          try {
+            localStorage.setItem(BUDGET_KEY, JSON.stringify(budgetInputs));
+          } catch (error) {
+            console.error("Tidak dapat menyimpan data anggaran.", error);
+            document.getElementById("budget-message").textContent = "Anggaran dihitung, tetapi tidak dapat disimpan di browser.";
+            document.getElementById("budget-message").classList.add("error");
+          }
+        });
+      });
+
+      document.getElementById("budget-form").addEventListener("submit", function (event) {
+        event.preventDefault();
+        var result = calculateBudget();
+        if (result.monthlyAvailable <= 0) {
+          renderBudget();
+          return;
+        }
+        try {
+          localStorage.setItem(LIMIT_KEY, String(result.limit));
+          dailyLimit = result.limit;
+          render();
+          renderBudget();
+        } catch (error) {
+          console.error("Tidak dapat menerapkan batas pengeluaran.", error);
+          var message = document.getElementById("budget-message");
+          message.textContent = "Batas dihitung, tetapi tidak dapat disimpan di browser.";
+          message.classList.add("error");
+        }
+      });
+
+      selectedDate.addEventListener("change", function () {
+        render();
+        renderBudget();
+      });
+      var today = new Date();
+      var todayString = localDateString(today);
+      selectedDate.value = todayString;
+      transactionDate.value = todayString;
+      document.getElementById("today-label").textContent = new Intl.DateTimeFormat("id-ID", {
+        weekday: "long", day: "numeric", month: "long", year: "numeric"
+      }).format(today);
+      render();
+      renderBudget();
+    }());
+  </script>
+</body>
+</html>
