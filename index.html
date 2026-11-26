@@ -119,6 +119,16 @@
     .empty { text-align: center; padding: 34px 20px 38px; color: var(--muted); font-size: 13px; }
     .empty-icon { width: 44px; height: 44px; display: grid; place-items: center; background: #f3f5f2; border-radius: 15px; margin: 0 auto 10px; font-size: 20px; }
     .notice { min-height: 17px; color: var(--red); font-size: 12px; margin: -7px 0 9px; }
+    .toast {
+      position: fixed; z-index: 10; left: 50%; bottom: max(20px, env(safe-area-inset-bottom));
+      width: max-content; max-width: calc(100vw - 32px); padding: 13px 17px;
+      border-radius: 12px; background: var(--green-dark); color: #fff;
+      box-shadow: 0 8px 26px rgba(15, 42, 27, .22); font-size: 13px; font-weight: 600;
+      opacity: 0; visibility: hidden; transform: translate(-50%, 10px);
+      transition: opacity .2s ease, transform .2s ease, visibility .2s;
+    }
+    .toast.show { opacity: 1; visibility: visible; transform: translate(-50%, 0); }
+    .toast.warning { background: #9e3f38; }
     footer { color: #939c96; font-size: 11px; text-align: center; margin-top: 26px; }
     @media (max-width: 760px) {
       .shell { padding: 20px 16px 38px; }
@@ -280,6 +290,7 @@
     </div>
     <footer>Data tersimpan di browser ini. Catatanmu tetap pribadi di perangkatmu.</footer>
   </main>
+  <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
   <script>
     (function () {
@@ -298,6 +309,18 @@
       var amountInput = document.getElementById("amount");
       var descriptionInput = document.getElementById("description");
       var formNotice = document.getElementById("form-notice");
+      var toast = document.getElementById("toast");
+      var toastTimer;
+
+      function showToast(message, warning) {
+        window.clearTimeout(toastTimer);
+        toast.textContent = message;
+        toast.classList.toggle("warning", Boolean(warning));
+        toast.classList.add("show");
+        toastTimer = window.setTimeout(function () {
+          toast.classList.remove("show");
+        }, 4000);
+      }
 
       function localDateString(date) {
         var year = date.getFullYear();
@@ -400,7 +423,7 @@
           message.textContent = "Pengeluaran rutin harian melebihi batas. Coba sesuaikan anggaran.";
           message.classList.add("error");
         } else {
-          message.textContent = "Dihitung untuk " + budgetDaysInSelectedMonth() + " hari. Angka sisa sudah memperhitungkan pengeluaran rutin harian.";
+          message.textContent = "Dihitung untuk " + budgetDaysInSelectedMonth() + " hari. Perubahan tersimpan otomatis; sisa sudah memperhitungkan pengeluaran rutin harian.";
         }
       }
 
@@ -508,12 +531,14 @@
 
       function deleteTransaction(id) {
         var previous = transactions;
+        var deleted = transactions.find(function (item) { return item.id === id; });
         transactions = transactions.filter(function (item) { return item.id !== id; });
         if (!saveTransactions()) {
           transactions = previous;
           return;
         }
         render();
+        showToast(deleted ? "Transaksi " + deleted.description + " berhasil dihapus." : "Transaksi berhasil dihapus.");
       }
 
       document.querySelectorAll(".type-button").forEach(function (button) {
@@ -553,6 +578,14 @@
         amountInput.value = "";
         descriptionInput.value = "";
         render();
+        var dailyExpense = selectedTransactions().reduce(function (total, transaction) {
+          return total + (transaction.type === "expense" ? transaction.amount : 0);
+        }, 0);
+        var confirmation = (item.type === "expense" ? "Pengeluaran " : "Pemasukan ") +
+          item.description + " sebesar " + formatCurrency(item.amount) + " berhasil dicatat.";
+        var exceeded = item.type === "expense" && dailyLimit > 0 && dailyExpense > dailyLimit;
+        if (exceeded) confirmation += " Batas harian terlampaui " + formatCurrency(dailyExpense - dailyLimit) + ".";
+        showToast(confirmation, exceeded);
         amountInput.focus();
       });
 
@@ -569,6 +602,7 @@
           dailyLimit = value;
           formNotice.textContent = "";
           render();
+          showToast("Batas pengeluaran harian disimpan: " + formatCurrency(value) + ".");
         } catch (error) {
           console.error("Tidak dapat menyimpan batas pengeluaran.", error);
           formNotice.textContent = "Batas tidak bisa disimpan. Periksa ruang penyimpanan browser.";
@@ -613,6 +647,7 @@
           dailyLimit = result.limit;
           render();
           renderBudget();
+          showToast("Batas harian " + formatCurrency(result.limit) + " berhasil diterapkan.");
         } catch (error) {
           console.error("Tidak dapat menerapkan batas pengeluaran.", error);
           var message = document.getElementById("budget-message");
